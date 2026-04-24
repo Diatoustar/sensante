@@ -58,3 +58,51 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 print(f"Entraînement : {X_train.shape[0]} patients")
 print(f"Test         : {X_test.shape[0]} patients")
+
+from sklearn.ensemble import RandomForestClassifier
+
+# Créer le modèle
+model = RandomForestClassifier(
+    n_estimators=100,  # Le modèle va construire 100 arbres de décision
+    random_state=42    # Pour garantir la reproductibilité des résultats
+)
+
+# Entraîner le modèle sur les données d'entraînement
+model.fit(X_train, y_train)
+
+print("Modèle entraîné !")
+print(f"Nombre d'arbres : {model.n_estimators}")
+print(f"Nombre de features : {model.n_features_in_}")
+print(f"Classes : {list(model.classes_)}")
+
+# Prédire les diagnostics sur les données de test
+y_pred = model.predict(X_test)
+
+# Créer un tableau pour comparer les 10 premières prédictions avec les vraies valeurs
+comparison = pd.DataFrame({
+    'Vrai diagnostic': y_test.values[:10],
+    'Prédiction': y_pred[:10]
+})
+
+# Afficher la comparaison
+print("Comparaison des 10 premiers résultats :")
+print(comparison)
+
+from sklearn.metrics import accuracy_score
+
+# Calcul de la précision (pourcentage de bonnes prédictions)
+accuracy = accuracy_score(y_test, y_pred)
+
+print(f"Accuracy : {accuracy:.2%}")
+
+from sklearn.metrics import confusion_matrix, classification_report
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 1. Matrice de confusion (calcul)
+cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
+
+# 2. Rapport de classification détaillé
+print("Rapport de classification :")
+print(classification_report(y_test, y_pred))
+
