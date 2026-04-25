@@ -106,3 +106,84 @@ cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
 print("Rapport de classification :")
 print(classification_report(y_test, y_pred))
 
+import joblib
+import os
+
+target_dir = os.path.join("..", "models")
+target_file = os.path.join(target_dir, "model.pkl")
+
+# Créer le dossier s'il n'existe pas
+os.makedirs(target_dir, exist_ok=True)
+
+# Sérialiser le modèle
+joblib.dump(model, target_file)
+
+# Vérifier la taille
+size = os.path.getsize(target_file)
+print(f"Modèle sauvegardé : {target_file}")
+print(f"Taille : {size / 1024:.1f} Ko")
+
+import joblib
+import os
+
+# Sauvegarder les encodeurs (indispensables pour les nouvelles données)
+# On utilise ".." pour remonter à la racine depuis le dossier 'notebooks'
+joblib.dump(le_sexe, "../models/encoder_sexe.pkl")
+joblib.dump(le_region, "../models/encoder_region.pkl")
+
+# Sauvegarder la liste des features (pour référence lors de l'inférence)
+joblib.dump(feature_cols, "../models/feature_cols.pkl")
+
+print("Encodeurs et metadata sauvegardés dans le dossier models.")
+
+# Simuler ce que fera l'API :
+# Charger le modèle DEPUIS LE FICHIER (pas depuis la mémoire)
+model_loaded = joblib.load("../models/model.pkl")
+le_sexe_loaded = joblib.load("../models/encoder_sexe.pkl")
+le_region_loaded = joblib.load("../models/encoder_region.pkl")
+
+print(f"Modèle rechargé : {type(model_loaded).__name__}")
+print(f"Classes : {list(model_loaded.classes_)}")
+
+# Un nouveau patient arrive au centre de santé de Médina
+nouveau_patient = {
+    'age': 28,
+    'sexe': 'F',
+    'temperature': 39.5,
+    'tension_sys': 110,
+    'toux': True,
+    'fatigue': True,
+    'maux_tete': True,
+    'region': 'Dakar'
+}
+
+# Encoder les valeurs catégoriques
+sexe_enc = le_sexe_loaded.transform([nouveau_patient['sexe']])[0]
+region_enc = le_region_loaded.transform([nouveau_patient['region']])[0]
+
+# Préparer le vecteur de features
+features = [
+    nouveau_patient['age'],
+    sexe_enc,
+    nouveau_patient['temperature'],
+    nouveau_patient['tension_sys'],
+    int(nouveau_patient['toux']),
+    int(nouveau_patient['fatigue']),
+    int(nouveau_patient['maux_tete']),
+    region_enc
+]
+
+# Prédire
+diagnostic = model_loaded.predict([features])[0]
+probas = model_loaded.predict_proba([features])[0]
+proba_max = probas.max()
+
+print(f"\n--- Résultat du pré-diagnostic ---")
+print(f"Patient : {nouveau_patient['sexe']}, {nouveau_patient['age']} ans")
+print(f"Diagnostic : {diagnostic}")
+print(f"Probabilité : {proba_max:.1%}")
+
+print(f"\nProbabilités par classe :")
+for classe, proba in zip(model_loaded.classes_, probas):
+    bar = '#' * int(proba * 30)
+    print(f"{classe:8s} : {proba:.1%} {bar}")
