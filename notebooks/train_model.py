@@ -1,5 +1,9 @@
 import pandas as pd
 import numpy as np
+import warnings
+
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # Charger le dataset
 file_path = "../data/patients_dakar.csv"
@@ -187,3 +191,82 @@ print(f"\nProbabilités par classe :")
 for classe, proba in zip(model_loaded.classes_, probas):
     bar = '#' * int(proba * 30)
     print(f"{classe:8s} : {proba:.1%} {bar}")
+
+
+# Affichons l'importance des features pour comprendre les facteurs clés du diagnostic
+importances = model.feature_importances_
+for name, imp in sorted(zip(feature_cols, importances),
+                        key=lambda x: x[1], reverse=True):
+    print(f"  {name:20s} : {imp:.3f}")
+
+
+#Testons avec plusieurs patients fictifs pour voir les diagnostics et les probabilités associées
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODELS_PATH = os.path.join(BASE_DIR, "models")
+
+try:
+    model_loaded = joblib.load(os.path.join(MODELS_PATH, "model.pkl"))
+    le_sexe_loaded = joblib.load(os.path.join(MODELS_PATH, "encoder_sexe.pkl"))
+    le_region_loaded = joblib.load(os.path.join(MODELS_PATH, "encoder_region.pkl"))
+    print("Modèles et encodeurs chargés avec succès.\n")
+except FileNotFoundError:
+    print("Erreur : Le dossier 'models' ou les fichiers .pkl sont introuvables au chemin attendu.")
+    exit()
+
+# 2. Liste des patients (Données propres)
+patients = [
+    {
+        "nom": "Patient 1 - Jeune sans symptômes",
+        "age": 20, "sexe": "M", "temperature": 37.0,
+        "tension_sys": 120, "toux": False, "fatigue": False,
+        "maux_tete": False, "region": "Dakar"
+    },
+    {
+        "nom": "Patient 2 - Adulte avec forte fièvre",
+        "age": 35, "sexe": "F", "temperature": 40.2,
+        "tension_sys": 95, "toux": False, "fatigue": True,
+        "maux_tete": True, "region": "Thiès"
+    },
+    {
+        "nom": "Patient 3 - Patient âgé avec toux",
+        "age": 68, "sexe": "M", "temperature": 38.5,
+        "tension_sys": 140, "toux": True, "fatigue": True,
+        "maux_tete": False, "region": "Saint-Louis"
+    }
+]
+
+# 3. Boucle de prédiction avec gestion d'erreurs d'encodage
+print("Résultats du pré-diagnostic")
+for p in patients:
+    try:
+        # Transformation des données textuelles en nombres
+        # .strip() retire les espaces accidentels en début/fin de chaîne
+        sexe_enc = le_sexe_loaded.transform([p["sexe"].strip()])[0]
+        region_enc = le_region_loaded.transform([p["region"].strip()])[0]
+
+        # Préparation du vecteur de caractéristiques (Features)
+        # L'ordre doit être identique à celui de l'entraînement (X_train)
+        features = [
+            p["age"], 
+            sexe_enc, 
+            p["temperature"], 
+            p["tension_sys"],
+            int(p["toux"]), 
+            int(p["fatigue"]), 
+            int(p["maux_tete"]), 
+            region_enc
+        ]
+
+        # Calcul des prédictions
+        diagnostic = model_loaded.predict([features])[0]
+        probas = model_loaded.predict_proba([features])[0]
+        proba_max = probas.max()
+
+        # Affichage propre
+        print(f"\n{p['nom']}")
+        print(f"Diagnostic : {diagnostic}")
+        print(f"Confiance  : {proba_max:.1%}")
+
+    except ValueError as e:
+        print(f"\n Erreur pour {p['nom']} : {e}")
+        print(" La région ou le sexe n'est pas reconnu par le modèle.")
