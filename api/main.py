@@ -110,3 +110,24 @@ def predict(patient: PatientInput):
         confiance=confiance,
         message=messages.get(diagnostic, "Consultez un médecin.")
     )
+
+@app.get("/model-info")
+def get_model_info():
+    """Renvoie les métadonnées du modèle RandomForest chargé."""
+    return {
+        "model_type": type(model).__name__,
+        "n_estimators": model.n_estimators,  # Nombre d'arbres
+        "classes": list(model.classes_),     # Classes prédites
+        "n_features": model.n_features_in_   # Nombre de features en entrée
+    }
+
+from fastapi.middleware.cors import CORSMiddleware
+
+# Autoriser les requêtes depuis le frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En développement : accepte toutes les origines
+    allow_credentials=True,
+    allow_methods=["*"],  # Autorise toutes les méthodes (GET, POST, etc.)
+    allow_headers=["*"],  # Autorise tous les headers
+)
